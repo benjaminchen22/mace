@@ -112,7 +112,9 @@ class CheckpointIO:
     def save(self, checkpoint: Checkpoint, epochs: int) -> None:
         if not self.keep and self.old_path:
             logging.debug(f"Deleting old checkpoint file: {self.old_path}")
-            os.remove(self.old_path)
+            from contextlib import suppress
+            with suppress(FileNotFoundError):
+                os.remove(self.old_path)
 
         filename = self._get_checkpoint_filename(epochs)
         path = os.path.join(self.directory, filename)

@@ -51,6 +51,7 @@ def train(
     eval_interval: int,
     device: torch.device,
     log_errors: str,
+    rank: int,
     swa: Optional[SWAContainer] = None,
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
@@ -61,8 +62,14 @@ def train(
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
+
     logging.info("Started training")
     for epoch in range(start_epoch, max_num_epochs):
+
+        # Required for DistributedDataParallel
+        sampler = train_loader.sampler
+        sampler.set_epoch(epoch)
+
         # Train
         for batch in train_loader:
             _, opt_metrics = take_step(
@@ -103,6 +110,7 @@ def train(
                 error_f = eval_metrics["rmse_f"] * 1e3
                 logging.info(
                     f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
+                /take_step
                 )
             elif log_errors == "TotalRMSE":
                 error_e = eval_metrics["rmse_e"] * 1e3
@@ -132,17 +140,20 @@ def train(
             else:
                 lowest_loss = valid_loss
                 patience_counter = 0
-                if ema is not None:
-                    with ema.average_parameters():
+                if rank == 0:
+                    # Save model.module isntead of model, as model is
+                    # DistributedDataParallel
+                    if ema is not None:
+                        with ema.average_parameters():
+                            checkpoint_handler.save(
+                                state=CheckpointState(model.module, optimizer, lr_scheduler),
+                                epochs=epoch,
+                            )
+                    else:
                         checkpoint_handler.save(
-                            state=CheckpointState(model, optimizer, lr_scheduler),
+                            state=CheckpointState(model.module, optimizer, lr_scheduler),
                             epochs=epoch,
                         )
-                else:
-                    checkpoint_handler.save(
-                        state=CheckpointState(model, optimizer, lr_scheduler),
-                        epochs=epoch,
-                    )
 
         # LR scheduler and SWA update
         if swa is None or epoch < swa.start:
@@ -170,6 +181,7 @@ def take_step(
 
     start_time = time.time()
     batch = batch.to(device)
+    model = model.to(device)
     optimizer.zero_grad()
     output = model(batch, training=True)
     loss = loss_fn(pred=output, ref=batch)
@@ -204,6 +216,7 @@ def evaluate(
     start_time = time.time()
     for batch in data_loader:
         batch = batch.to(device)
+        model = model.to(device)
         output = model(batch, training=False)
         batch = batch.cpu()
         output = tensor_dict_to_device(output, device=torch.device("cpu"))
