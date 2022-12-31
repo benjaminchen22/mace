@@ -52,6 +52,7 @@ def train(
     device: torch.device,
     log_errors: str,
     rank: int,
+    global_rank: int,
     swa: Optional[SWAContainer] = None,
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
@@ -66,7 +67,7 @@ def train(
     logging.info("Started training")
     for epoch in range(start_epoch, max_num_epochs):
 
-        # Required for DistributedDataParallel
+        # Required for shuffling data in DistributedDataParallel
         sampler = train_loader.sampler
         sampler.set_epoch(epoch)
 
@@ -105,31 +106,33 @@ def train(
             eval_metrics["mode"] = "eval"
             eval_metrics["epoch"] = epoch
             logger.log(eval_metrics)
+            lr = lr_scheduler.optimizer.param_groups[0]['lr']
+
             if log_errors == "PerAtomRMSE":
                 error_e = eval_metrics["rmse_e_per_atom"] * 1e3
                 error_f = eval_metrics["rmse_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
-                /take_step
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
             elif log_errors == "TotalRMSE":
                 error_e = eval_metrics["rmse_e"] * 1e3
                 error_f = eval_metrics["rmse_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
             elif log_errors == "PerAtomMAE":
                 error_e = eval_metrics["mae_e_per_atom"] * 1e3
                 error_f = eval_metrics["mae_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
             elif log_errors == "TotalMAE":
                 error_e = eval_metrics["mae_e"] * 1e3
                 error_f = eval_metrics["mae_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
+
             if valid_loss >= lowest_loss:
                 patience_counter += 1
                 if patience_counter >= patience:
@@ -140,7 +143,7 @@ def train(
             else:
                 lowest_loss = valid_loss
                 patience_counter = 0
-                if rank == 0:
+                if global_rank == 0:
                     # Save model.module isntead of model, as model is
                     # DistributedDataParallel
                     if ema is not None:

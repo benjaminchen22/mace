@@ -108,6 +108,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--num_interactions", help="number of interactions", type=int, default=2
     )
+
     parser.add_argument(
         "--MLP_irreps",
         help="hidden irreps of the MLP in last readout",
@@ -320,6 +321,15 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         type=check_float_or_none,
         default=10.0,
     )
+
+
+    ########################################################################################
+    # BC: for DDP
+    #
+    parser.add_argument('-n', '--nodes', default=1, type=int, metavar='N')
+    parser.add_argument('-g', '--gpus', default=1, type=int, help='number of gpus per node')
+    ########################################################################################
+
     return parser
 
 

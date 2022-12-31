@@ -28,7 +28,7 @@ class MACECalculator(Calculator):
     ):
         Calculator.__init__(self, **kwargs)
         self.results = {}
-
+        
         self.model = torch.load(f=model_path, map_location=device)
         self.r_max = self.model.r_max
         self.device = torch_tools.init_device(device)
