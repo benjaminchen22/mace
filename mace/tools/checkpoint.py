@@ -151,7 +151,9 @@ class CheckpointIO:
     ) -> None:
         if not self.keep and self.old_path and not keep_last:
             logging.debug(f"Deleting old checkpoint file: {self.old_path}")
-            os.remove(self.old_path)
+            from contextlib import suppress
+            with suppress(FileNotFoundError):
+                os.remove(self.old_path)
 
         filename = self._get_checkpoint_filename(epochs, self.swa_start)
         path = os.path.join(self.directory, filename)

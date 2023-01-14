@@ -88,6 +88,12 @@ class AtomicNumberTable:
     def z_to_index(self, atomic_number: str) -> int:
         return self.zs.index(atomic_number)
 
+    def __hash__(self):
+        return 0
+
+    def __eq__(self, other):
+        return self.zs == other.zs
+
 
 def get_atomic_number_table_from_zs(zs: Iterable[int]) -> AtomicNumberTable:
     z_set = set()

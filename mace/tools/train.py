@@ -52,6 +52,8 @@ def train(
     output_args: Dict[str, bool],
     device: torch.device,
     log_errors: str,
+    rank: int,
+    global_rank: int,
     swa: Optional[SWAContainer] = None,
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
@@ -64,9 +66,14 @@ def train(
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
+
     logging.info("Started training")
     epoch = start_epoch
     while epoch < max_num_epochs:
+        # Required for shuffling data in DistributedDataParallel
+        sampler = train_loader.sampler
+        sampler.set_epoch(epoch)
+
         # LR scheduler and SWA update
         if swa is None or epoch < swa.start:
             if epoch > start_epoch:
@@ -122,11 +129,13 @@ def train(
             eval_metrics["mode"] = "eval"
             eval_metrics["epoch"] = epoch
             logger.log(eval_metrics)
+            lr = lr_scheduler.optimizer.param_groups[0]['lr']
+
             if log_errors == "PerAtomRMSE":
                 error_e = eval_metrics["rmse_e_per_atom"] * 1e3
                 error_f = eval_metrics["rmse_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
             elif (
                 log_errors == "PerAtomRMSEstressvirials"
@@ -152,19 +161,19 @@ def train(
                 error_e = eval_metrics["rmse_e"] * 1e3
                 error_f = eval_metrics["rmse_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
             elif log_errors == "PerAtomMAE":
                 error_e = eval_metrics["mae_e_per_atom"] * 1e3
                 error_f = eval_metrics["mae_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
             elif log_errors == "TotalMAE":
                 error_e = eval_metrics["mae_e"] * 1e3
                 error_f = eval_metrics["mae_f"] * 1e3
                 logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
+                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}"
                 )
             elif log_errors == "DipoleRMSE":
                 error_mu = eval_metrics["rmse_mu_per_atom"] * 1e3
@@ -193,22 +202,50 @@ def train(
             else:
                 lowest_loss = valid_loss
                 patience_counter = 0
-                if ema is not None:
-                    with ema.average_parameters():
+                if global_rank == 0:
+                    # Save model.module isntead of model, as model is
+                    # DistributedDataParallel
+                    if ema is not None:
+                        with ema.average_parameters():
+                            checkpoint_handler.save(
+                                state=CheckpointState(model.module, optimizer, lr_scheduler),
+                                epochs=epoch,
+                            )
+                    else:
                         checkpoint_handler.save(
-                            state=CheckpointState(model, optimizer, lr_scheduler),
+                            state=CheckpointState(model.module, optimizer, lr_scheduler),
                             epochs=epoch,
                             keep_last=keep_last,
                         )
-                        keep_last = False
-                else:
-                    checkpoint_handler.save(
-                        state=CheckpointState(model, optimizer, lr_scheduler),
-                        epochs=epoch,
-                        keep_last=keep_last,
-                    )
-                    keep_last = False
         epoch += 1
+
+        # LR scheduler and SWA update
+        if swa is None or epoch < swa.start:
+            if isinstance(lr_scheduler, torch.optim.lr_scheduler.ExponentialLR):
+                lr_scheduler.step()
+            else:
+                lr_scheduler.step(valid_loss)  # Can break if exponential LR, TODO fix that!
+        else:
+            if swa_start:
+                logging.info("Changing loss based on SWA")
+                swa_start = False
+                
+
+                ##################################################################
+                # BC: Experimental; set LR to a low value that will be annealed to the 
+                # SWA LR so that when we change loss function there will be no jump in the 
+                # losses
+                optim = lr_scheduler.optimizer
+                swa_optim = swa.scheduler.optimizer
+                
+                for g, swa_g in zip(optim.param_groups, swa_optim.param_groups):
+                    logging.info(f'Setting lr to {swa_g["swa_lr"] / 100}')
+                    g['lr'] =  swa_g['swa_lr'] / 100
+                ###################################################################    
+            loss_fn = swa.loss_fn
+            # model.module or model gives same results
+            swa.model.update_parameters(model)
+            swa.scheduler.step()
 
     logging.info("Training complete")
 
@@ -226,6 +263,7 @@ def take_step(
 
     start_time = time.time()
     batch = batch.to(device)
+    model = model.to(device)
     optimizer.zero_grad(set_to_none=True)
     batch_dict = batch.to_dict()
     output = model(
@@ -280,6 +318,7 @@ def evaluate(
 
     start_time = time.time()
     for batch in data_loader:
+        model = model.to(device)
         batch = batch.to(device)
         batch_dict = batch.to_dict()
         output = model(
