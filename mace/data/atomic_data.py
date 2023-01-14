@@ -87,7 +87,6 @@ class AtomicData(torch_geometric.data.Data):
             if config.cell is not None
             else None
         )
-
         weight = (
             torch.tensor(config.weight, dtype=torch.get_default_dtype())
             if config.weight is not None
@@ -104,6 +103,7 @@ class AtomicData(torch_geometric.data.Data):
             if config.energy is not None
             else None
         )
+
 
         return cls(
             edge_index=torch.tensor(edge_index, dtype=torch.long),

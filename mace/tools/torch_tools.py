@@ -48,13 +48,11 @@ def to_numpy(t: torch.Tensor) -> np.ndarray:
 
 
 def init_device(device_str: str) -> torch.device:
-    if device_str == "cuda":
+    if 'cuda' in device_str:
         assert torch.cuda.is_available(), "No CUDA device available!"
-        logging.info(
-            f"CUDA version: {torch.version.cuda}, CUDA device: {torch.cuda.current_device()}"
-        )
+        logging.info(f"CUDA version: {torch.version.cuda}, CUDA device: {torch.cuda.current_device()}")
         torch.cuda.init()
-        return torch.device("cuda")
+        return torch.device(device_str)
 
     logging.info("Using CPU")
     return torch.device("cpu")

@@ -28,10 +28,13 @@ class MACECalculator(Calculator):
     ):
         Calculator.__init__(self, **kwargs)
         self.results = {}
-        
-        self.model = torch.load(f=model_path, map_location=device)
+
+        device = torch.device(device)
+        self.model = torch.load(f=model_path, map_location=device).to(device=device)
+        torch.cuda.empty_cache()
+
         self.r_max = self.model.r_max
-        self.device = torch_tools.init_device(device)
+        #self.device = torch_tools.init_device(device)
         self.energy_units_to_eV = energy_units_to_eV
         self.length_units_to_A = length_units_to_A
         self.z_table = utils.AtomicNumberTable(

@@ -244,7 +244,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         "--amsgrad",
         help="use amsgrad variant of optimizer",
         action="store_true",
-        default=True,
+        default=False,
     )
     parser.add_argument(
         "--scheduler", help="Type of scheduler", type=str, default="ReduceLROnPlateau"

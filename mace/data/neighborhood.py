@@ -5,8 +5,7 @@
 ###########################################################################################
 
 from typing import Optional, Tuple
-
-import ase.neighborlist
+from matscipy.neighbours import neighbour_list
 import numpy as np
 
 
@@ -25,15 +24,16 @@ def get_neighborhood(
 
     assert len(pbc) == 3 and all(isinstance(i, (bool, np.bool_)) for i in pbc)
     assert cell.shape == (3, 3)
+    assert all(i == False for i in pbc) or all(i == True for i in pbc)  # matscipy nly works with fully periodic or fully non-periodic for now.
 
-    sender, receiver, unit_shifts = ase.neighborlist.primitive_neighbor_list(
+    sender, receiver, unit_shifts = neighbour_list(
         quantities="ijS",
         pbc=pbc,
         cell=cell,
         positions=positions,
         cutoff=cutoff,
-        self_interaction=True,  # we want edges from atom to itself in different periodic images
-        use_scaled_positions=False,  # positions are not scaled positions
+#        self_interaction=True,  # we want edges from atom to itself in different periodic images
+#        use_scaled_positions=False,  # positions are not scaled positions
     )
 
     if not true_self_interaction:
