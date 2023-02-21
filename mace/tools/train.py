@@ -69,7 +69,8 @@ def train(
 
         # Required for shuffling data in DistributedDataParallel
         sampler = train_loader.sampler
-        sampler.set_epoch(epoch)
+        if isinstance(sampler, torch.utils.data.distributed.DistributedSampler):
+            sampler.set_epoch(epoch)
 
         # Train
         for batch in train_loader:
