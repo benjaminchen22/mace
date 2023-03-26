@@ -33,6 +33,9 @@ class MACECalculator(Calculator):
         self.model = torch.load(f=model_path, map_location=device)
         self.r_max = float(self.model.r_max)
         self.device = torch_tools.init_device(device)
+        #device = torch.device(device)
+        #self.model = torch.load(f=model_path, map_location=device).to(device=device)
+        #torch.cuda.empty_cache()
         self.energy_units_to_eV = energy_units_to_eV
         self.length_units_to_A = length_units_to_A
         self.z_table = utils.AtomicNumberTable(

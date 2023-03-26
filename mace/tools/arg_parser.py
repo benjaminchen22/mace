@@ -127,6 +127,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--num_interactions", help="number of interactions", type=int, default=2
     )
+
     parser.add_argument(
         "--MLP_irreps",
         help="hidden irreps of the MLP in last readout",
@@ -348,7 +349,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         "--amsgrad",
         help="use amsgrad variant of optimizer",
         action="store_true",
-        default=True,
+        default=False,
     )
     parser.add_argument(
         "--scheduler", help="Type of scheduler", type=str, default="ReduceLROnPlateau"
@@ -425,6 +426,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         type=check_float_or_none,
         default=10.0,
     )
+
     # options for using Weights and Biases for experiment tracking
     # to install see https://wandb.ai
     parser.add_argument(

@@ -126,7 +126,6 @@ class AtomicData(torch_geometric.data.Data):
                 3 * [0.0, 0.0, 0.0], dtype=torch.get_default_dtype()
             ).view(3, 3)
         )
-
         weight = (
             torch.tensor(config.weight, dtype=torch.get_default_dtype())
             if config.weight is not None
@@ -189,6 +188,7 @@ class AtomicData(torch_geometric.data.Data):
             if config.charges is not None
             else None
         )
+
 
         return cls(
             edge_index=torch.tensor(edge_index, dtype=torch.long),
