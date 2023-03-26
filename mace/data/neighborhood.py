@@ -14,8 +14,8 @@ def get_neighborhood(
     cutoff: float,
     pbc: Optional[Tuple[bool, bool, bool]] = None,
     cell: Optional[np.ndarray] = None,  # [3, 3]
-    true_self_interaction=False,
-) -> Tuple[np.ndarray, np.ndarray]:
+    true_self_interaction=False) -> Tuple[np.ndarray, np.ndarray]:
+
     if pbc is None:
         pbc = (False, False, False)
 
@@ -26,18 +26,20 @@ def get_neighborhood(
     assert cell.shape == (3, 3)
     assert all(i == False for i in pbc) or all(i == True for i in pbc)  # matscipy nly works with fully periodic or fully non-periodic for now.
     
-    pbc_x = pbc[0]
-    pbc_y = pbc[1]
-    pbc_z = pbc[2]
-    identity = np.identity(3, dtype=float)
-    max_positions = np.max(np.absolute(positions)) + 1
     # Extend cell in non-periodic directions
-    if not pbc_x:
-        cell[:,0] = max_positions * 5 * cutoff * identity[:,0]
-    if not pbc_y:
-        cell[:,1] = max_positions * 5 * cutoff * identity[:,1]
-    if not pbc_z:
-        cell[:,2] = max_positions * 5 * cutoff * identity[:,2]
+    if not np.all(pbc):
+        pbc_x = pbc[0]
+        pbc_y = pbc[1]
+        pbc_z = pbc[2]
+        identity = np.identity(3, dtype=float)
+        max_positions = np.max(np.absolute(positions)) + 1
+
+        if not pbc_x:
+            cell[:,0] = max_positions * 5 * cutoff * identity[:,0]
+        if not pbc_y:
+            cell[:,1] = max_positions * 5 * cutoff * identity[:,1]
+        if not pbc_z:
+            cell[:,2] = max_positions * 5 * cutoff * identity[:,2]
 
     sender, receiver, unit_shifts = neighbour_list(
         quantities="ijS",
@@ -47,7 +49,7 @@ def get_neighborhood(
         cutoff=cutoff,
 #        self_interaction=True,  # we want edges from atom to itself in different periodic images
 #        use_scaled_positions=False,  # positions are not scaled positions
-    )
+        )
 
     if not true_self_interaction:
         # Eliminate self-edges that don't cross periodic boundaries

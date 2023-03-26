@@ -71,44 +71,44 @@ class AtomicData(torch_geometric.data.Data):
 
     @classmethod
     def from_config(
-        cls, config: Configuration, z_table: AtomicNumberTable, cutoff: float
+        cls, config: Configuration, z_table: AtomicNumberTable, cutoff: float, device=None,
     ) -> "AtomicData":
         edge_index, shifts = get_neighborhood(
             positions=config.positions, cutoff=cutoff, pbc=config.pbc, cell=config.cell
         )
         indices = atomic_numbers_to_indices(config.atomic_numbers, z_table=z_table)
         one_hot = to_one_hot(
-            torch.tensor(indices, dtype=torch.long).unsqueeze(-1),
+            torch.tensor(indices, dtype=torch.long, device=device).unsqueeze(-1),
             num_classes=len(z_table),
         )
 
         cell = (
-            torch.tensor(config.cell, dtype=torch.get_default_dtype())
+            torch.tensor(config.cell, dtype=torch.get_default_dtype(), device=device)
             if config.cell is not None
             else None
         )
         weight = (
-            torch.tensor(config.weight, dtype=torch.get_default_dtype())
+            torch.tensor(config.weight, dtype=torch.get_default_dtype(), device=device)
             if config.weight is not None
             else 1
         )
 
         forces = (
-            torch.tensor(config.forces, dtype=torch.get_default_dtype())
+            torch.tensor(config.forces, dtype=torch.get_default_dtype(), device=device)
             if config.forces is not None
             else None
         )
         energy = (
-            torch.tensor(config.energy, dtype=torch.get_default_dtype())
+            torch.tensor(config.energy, dtype=torch.get_default_dtype(), device=device)
             if config.energy is not None
             else None
         )
 
 
         return cls(
-            edge_index=torch.tensor(edge_index, dtype=torch.long),
-            positions=torch.tensor(config.positions, dtype=torch.get_default_dtype()),
-            shifts=torch.tensor(shifts, dtype=torch.get_default_dtype()),
+            edge_index=torch.tensor(edge_index, dtype=torch.long, device=device),
+            positions=torch.tensor(config.positions, dtype=torch.get_default_dtype(), device=device),
+            shifts=torch.tensor(shifts, dtype=torch.get_default_dtype(), device=device),
             cell=cell,
             node_attrs=one_hot,
             weight=weight,
