@@ -144,18 +144,24 @@ def train(
             else:
                 lowest_loss = valid_loss
                 patience_counter = 0
-                if global_rank == 0:
+                if global_rank == 0 or global_rank is None: # global_rank is None for CPU
+
+                    if global_rank == 0:
+                        m = model.module
+                    else:
+                        m = model
+
                     # Save model.module isntead of model, as model is
                     # DistributedDataParallel
                     if ema is not None:
                         with ema.average_parameters():
                             checkpoint_handler.save(
-                                state=CheckpointState(model.module, optimizer, lr_scheduler),
+                                state=CheckpointState(m, optimizer, lr_scheduler),
                                 epochs=epoch,
                             )
                     else:
                         checkpoint_handler.save(
-                            state=CheckpointState(model.module, optimizer, lr_scheduler),
+                            state=CheckpointState(m, optimizer, lr_scheduler),
                             epochs=epoch,
                         )
 

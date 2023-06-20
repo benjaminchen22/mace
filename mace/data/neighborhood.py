@@ -7,6 +7,7 @@
 from typing import Optional, Tuple
 from matscipy.neighbours import neighbour_list
 import numpy as np
+from pymatgen.core import Structure
 
 
 def get_neighborhood(
@@ -41,12 +42,22 @@ def get_neighborhood(
         if not pbc_z:
             cell[:,2] = max_positions * 5 * cutoff * identity[:,2]
 
+    """
+    lattice = cell
+    symbols = np.ones(len(positions))  # Dummy symbols to create `Structure`...
+    struct = Structure(lattice, symbols, positions, coords_are_cartesian=True)
+    sender, receiver, unit_shifts, n_distance = struct.get_neighbor_list(
+        r=float(cutoff),
+        numerical_tol=1e-10,
+        exclude_self=False)
+
+    """
     sender, receiver, unit_shifts = neighbour_list(
         quantities="ijS",
         pbc=pbc,
         cell=cell,
         positions=positions,
-        cutoff=cutoff,
+        cutoff=float(cutoff),
 #        self_interaction=True,  # we want edges from atom to itself in different periodic images
 #        use_scaled_positions=False,  # positions are not scaled positions
         )

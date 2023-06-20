@@ -4,13 +4,14 @@
 # This program is distributed under the MIT License (see MIT.md)
 ###########################################################################################
 
-
+import logging
 import torch
 from ase.calculators.calculator import Calculator, all_changes
 
 from mace import data
 from mace.tools import torch_geometric, torch_tools, utils
 
+logger = logging.getLogger(__name__)
 
 class MACECalculator(Calculator):
     """MACE ASE Calculator"""
@@ -31,10 +32,7 @@ class MACECalculator(Calculator):
 
         device = torch.device(device)
         self.model = torch.load(f=model_path, map_location=device).to(device=device)
-        torch.cuda.empty_cache()
-
         self.r_max = self.model.r_max
-        #self.device = torch_tools.init_device(device)
         self.energy_units_to_eV = energy_units_to_eV
         self.length_units_to_A = length_units_to_A
         self.z_table = utils.AtomicNumberTable(
