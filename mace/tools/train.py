@@ -164,6 +164,8 @@ def train(
                             state=CheckpointState(m, optimizer, lr_scheduler),
                             epochs=epoch,
                         )
+                        m.to('cpu')
+                        torch.save(m)
 
         # LR scheduler and SWA update
         if swa is None or epoch < swa.start:
