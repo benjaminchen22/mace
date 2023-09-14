@@ -70,7 +70,8 @@ def train(
         # Required for shuffling data in DistributedDataParallel
         if rank is not None:
             sampler = train_loader.sampler
-            sampler.set_epoch(epoch)
+            if isinstance(sampler, torch.utils.data.distributed.DistributedSampler):
+                sampler.set_epoch(epoch)
 
         # Train
         for batch in train_loader:
@@ -141,29 +142,54 @@ def train(
             else:
                 lowest_loss = valid_loss
                 patience_counter = 0
-                if global_rank == 0:
+                if global_rank == 0 or global_rank is None: # global_rank is None for CPU
+
+                    if global_rank == 0:
+                        m = model.module
+                    else:
+                        m = model
+
                     # Save model.module isntead of model, as model is
                     # DistributedDataParallel
                     if ema is not None:
                         with ema.average_parameters():
                             checkpoint_handler.save(
-                                state=CheckpointState(model.module, optimizer, lr_scheduler),
+                                state=CheckpointState(m, optimizer, lr_scheduler),
                                 epochs=epoch,
                             )
                     else:
                         checkpoint_handler.save(
-                            state=CheckpointState(model.module, optimizer, lr_scheduler),
+                            state=CheckpointState(m, optimizer, lr_scheduler),
                             epochs=epoch,
                         )
+                        m.to('cpu')
+                        torch.save(m)
 
         # LR scheduler and SWA update
         if swa is None or epoch < swa.start:
-            lr_scheduler.step(valid_loss)  # Can break if exponential LR, TODO fix that!
+            if isinstance(lr_scheduler, torch.optim.lr_scheduler.ExponentialLR):
+                lr_scheduler.step()
+            else:
+                lr_scheduler.step(valid_loss)  # Can break if exponential LR, TODO fix that!
         else:
             if swa_start:
                 logging.info("Changing loss based on SWA")
                 swa_start = False
+                
+
+                ##################################################################
+                # BC: Experimental; set LR to a low value that will be annealed to the 
+                # SWA LR so that when we change loss function there will be no jump in the 
+                # losses
+                optim = lr_scheduler.optimizer
+                swa_optim = swa.scheduler.optimizer
+                
+                for g, swa_g in zip(optim.param_groups, swa_optim.param_groups):
+                    logging.info(f'Setting lr to {swa_g["swa_lr"] / 100}')
+                    g['lr'] =  swa_g['swa_lr'] / 100
+                ###################################################################    
             loss_fn = swa.loss_fn
+            # model.module or model gives same results
             swa.model.update_parameters(model)
             swa.scheduler.step()
 
