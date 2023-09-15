@@ -58,6 +58,7 @@ class CheckpointIO:
         self.tag = tag
         self.keep = keep
         self.old_path: Optional[str] = None
+        self.old_model_path: Optional[str] = None
         self.swa_start = swa_start
 
         self._epochs_string = "_epoch-"
@@ -147,11 +148,16 @@ class CheckpointIO:
         return latest_checkpoint_info.path
 
     def save(
-        self, checkpoint: Checkpoint, epochs: int, keep_last: bool = False
+        self, checkpoint: Checkpoint, epochs: int, keep_last: bool = False, model= None
     ) -> None:
         if not self.keep and self.old_path and not keep_last:
             logging.debug(f"Deleting old checkpoint file: {self.old_path}")
             os.remove(self.old_path)
+
+            from contextlib import suppress
+            with suppress(FileNotFoundError):
+                os.remove(self.old_model_path)
+
 
         filename = self._get_checkpoint_filename(epochs, self.swa_start)
         path = os.path.join(self.directory, filename)
@@ -159,6 +165,14 @@ class CheckpointIO:
         os.makedirs(self.directory, exist_ok=True)
         torch.save(obj=checkpoint, f=path)
         self.old_path = path
+
+
+        if model is not None:
+            model_path = path.removesuffix('.pt') + '.model'
+            model.to('cpu')
+            torch.save(model, f=model_path)
+            self.old_model_path = model_path
+
 
     def load_latest(
         self, swa: Optional[bool] = False, device: Optional[torch.device] = None
@@ -193,7 +207,7 @@ class CheckpointHandler:
         self, state: CheckpointState, epochs: int, keep_last: bool = False
     ) -> None:
         checkpoint = self.builder.create_checkpoint(state)
-        self.io.save(checkpoint, epochs, keep_last)
+        self.io.save(checkpoint, epochs, keep_last, state.model)
 
     def load_latest(
         self,
