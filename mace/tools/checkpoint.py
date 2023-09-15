@@ -38,7 +38,7 @@ class CheckpointBuilder:
         state: CheckpointState, checkpoint: Checkpoint, strict: bool
     ) -> None:
         state.model.load_state_dict(checkpoint["model"], strict=strict)  # type: ignore
-        state.optimizer.load_state_dict(checkpoint["optimizer"])
+        #state.optimizer.load_state_dict(checkpoint["optimizer"])
         state.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
 
 

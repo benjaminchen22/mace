@@ -98,6 +98,45 @@ def get_dataset_from_xyz(
     )
 
 
+class SWALRScheduler:
+    def __init__(self, optimizer, args) -> None:
+        self.scheduler = args.scheduler
+        if args.scheduler == "ExponentialLR":
+            self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                optimizer=optimizer, gamma=args.lr_scheduler_gamma
+            )
+        elif args.scheduler == "ReduceLROnPlateau":
+            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer=optimizer,
+                factor=args.lr_factor,
+                patience=args.scheduler_patience,
+            )
+        elif args.scheduler == "CAWR":
+            from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
+            self.lr_scheduler = CosineAnnealingWarmupRestarts(optimizer,
+                                                      first_cycle_steps=args.scheduler_patience,
+                                                      cycle_mult=1.0,
+                                                      max_lr=args.swa_lr,
+                                                      min_lr=args.swa_lr/10,
+                                                      warmup_steps=int(args.scheduler_patience/2),
+                                                      gamma=1.0)
+
+        else:
+            raise RuntimeError(f"Unknown scheduler: '{args.scheduler}'")
+
+    def step(self, metrics=None, epoch=None):  # pylint: disable=E1123
+        if self.scheduler == "ExponentialLR":
+            self.lr_scheduler.step(epoch=epoch)
+        elif self.scheduler == "ReduceLROnPlateau":
+            self.lr_scheduler.step(metrics=metrics, epoch=epoch)
+        elif self.scheduler == "CAWR":
+            self.lr_scheduler.step()
+
+    def __getattr__(self, name):
+        if name == "step":
+            return self.step
+        return getattr(self.lr_scheduler, name)
+
 class LRScheduler:
     def __init__(self, optimizer, args) -> None:
         self.scheduler = args.scheduler
@@ -117,7 +156,7 @@ class LRScheduler:
                                                       first_cycle_steps=args.scheduler_patience,
                                                       cycle_mult=1.0,
                                                       max_lr=args.lr,
-                                                      min_lr=args.lr/100,
+                                                      min_lr=args.lr/10,
                                                       warmup_steps=int(args.scheduler_patience/2),
                                                       gamma=1.0)
 

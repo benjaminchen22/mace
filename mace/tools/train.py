@@ -85,7 +85,7 @@ def train(
             loss_fn = swa.loss_fn
             swa.model.update_parameters(model)
             if epoch > start_epoch:
-                swa.scheduler.step()
+                swa.scheduler.step(metrics=valid_loss)
 
         # Train
         for batch in train_loader:
@@ -142,7 +142,7 @@ def train(
                 error_f = eval_metrics["rmse_f"] * 1e3
                 error_stress = eval_metrics["rmse_stress_per_atom"] * 1e3
                 logging.info(
-                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_stress_per_atom={error_stress:.1f} meV / A^3, lr={lr:.2e}"
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_stress_per_atom={error_stress:.3f} meV / A^3, lr={lr:.2e}"
                 )
             elif (
                 log_errors == "PerAtomRMSEstressvirials"
