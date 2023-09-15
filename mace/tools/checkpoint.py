@@ -168,7 +168,9 @@ class CheckpointIO:
 
 
         if model is not None:
+            import copy
             model_path = path.removesuffix('.pt') + '.model'
+            model = copy.deepcopy(model)
             model.to('cpu')
             torch.save(model, f=model_path)
             self.old_model_path = model_path
