@@ -171,7 +171,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         help="non linearity for last readout",
         type=str,
         default="silu",
-        choices=["silu", "tanh", "abs", "None"],
+        choices=["silu", "tanh", "abs", "None","celu","gelu"],
     )
     parser.add_argument(
         "--scaling",

@@ -111,6 +111,16 @@ class LRScheduler:
                 factor=args.lr_factor,
                 patience=args.scheduler_patience,
             )
+        elif args.scheduler == "CAWR":
+            from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
+            self.lr_scheduler = CosineAnnealingWarmupRestarts(optimizer,
+                                                      first_cycle_steps=args.scheduler_patience,
+                                                      cycle_mult=1.0,
+                                                      max_lr=args.lr,
+                                                      min_lr=args.lr/100,
+                                                      warmup_steps=int(args.scheduler_patience/2),
+                                                      gamma=1.0)
+
         else:
             raise RuntimeError(f"Unknown scheduler: '{args.scheduler}'")
 
@@ -119,6 +129,8 @@ class LRScheduler:
             self.lr_scheduler.step(epoch=epoch)
         elif self.scheduler == "ReduceLROnPlateau":
             self.lr_scheduler.step(metrics=metrics, epoch=epoch)
+        elif self.scheduler == "CAWR":
+            self.lr_scheduler.step()
 
     def __getattr__(self, name):
         if name == "step":

@@ -118,7 +118,8 @@ def config_from_atoms(
     forces = atoms.arrays.get(forces_key, None)  # eV / Ang
     stress = atoms.info.get(stress_key, None)  # eV / Ang
     virials = atoms.info.get(virials_key, None)
-    dipole = atoms.info.get(dipole_key, None)  # Debye
+    #dipole = atoms.info.get(dipole_key, None)  # Debye
+    dipole = None
     # Charges default to 0 instead of None if not found
     charges = atoms.arrays.get(charges_key, np.zeros(len(atoms)))  # atomic unit
     atomic_numbers = np.array(
