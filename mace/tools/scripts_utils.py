@@ -120,7 +120,10 @@ class SWALRScheduler:
                                                       min_lr=args.swa_lr/10,
                                                       warmup_steps=int(args.scheduler_patience/2),
                                                       gamma=1.0)
-
+        elif args.scheduler == "CAWRtorch":
+            self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
+                                                                                    T_0=args.scheduler_patience,
+                                                                                    eta_min=args.lr/10)
         else:
             raise RuntimeError(f"Unknown scheduler: '{args.scheduler}'")
 
@@ -130,6 +133,8 @@ class SWALRScheduler:
         elif self.scheduler == "ReduceLROnPlateau":
             self.lr_scheduler.step(metrics=metrics, epoch=epoch)
         elif self.scheduler == "CAWR":
+            self.lr_scheduler.step()
+        elif self.scheduler == "CAWRtorch":
             self.lr_scheduler.step()
 
     def __getattr__(self, name):
@@ -159,7 +164,10 @@ class LRScheduler:
                                                       min_lr=args.lr/10,
                                                       warmup_steps=int(args.scheduler_patience/2),
                                                       gamma=1.0)
-
+        elif args.scheduler == "CAWRtorch":
+            self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
+                                                                                    T_0=args.scheduler_patience,
+                                                                                    eta_min=args.lr/10)
         else:
             raise RuntimeError(f"Unknown scheduler: '{args.scheduler}'")
 
@@ -169,6 +177,8 @@ class LRScheduler:
         elif self.scheduler == "ReduceLROnPlateau":
             self.lr_scheduler.step(metrics=metrics, epoch=epoch)
         elif self.scheduler == "CAWR":
+            self.lr_scheduler.step()
+        elif self.scheduler == "CAWRtorch":
             self.lr_scheduler.step()
 
     def __getattr__(self, name):
@@ -362,8 +372,6 @@ def create_error_table(
                     f"{metrics['rmse_e_per_atom'] * 1000:.1f}",
                     f"{metrics['rmse_f'] * 1000:.1f}",
                     f"{metrics['rel_rmse_f']:.1f}",
-                    f"{metrics['rmse_mu_per_atom'] * 1000:.1f}",
-                    f"{metrics['rel_rmse_mu']:.1f}",
-                ]
-            )
-    return table
+                    ]
+                )
+        return table

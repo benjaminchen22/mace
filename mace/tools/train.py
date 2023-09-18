@@ -85,7 +85,10 @@ def train(
             loss_fn = swa.loss_fn
             swa.model.update_parameters(model)
             if epoch > start_epoch:
-                swa.scheduler.step(metrics=valid_loss)
+                try:
+                    swa.scheduler.step(metrics=valid_loss)
+                except TypeError:
+                    swa.scheduler.step()
 
         # Train
         for batch in train_loader:
