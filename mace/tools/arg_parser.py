@@ -285,6 +285,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "stress",
             "dipole",
             "huber",
+            "hubernostress",
             "energy_forces_dipole",
         ],
     )

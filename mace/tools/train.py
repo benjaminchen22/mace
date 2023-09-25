@@ -82,6 +82,19 @@ def train(
                 lowest_loss = np.inf
                 swa_start = False
                 keep_last = True
+
+                ##################################################################
+                # BC: Experimental; set LR to a low value that will be annealed to the
+                # SWA LR so that when we change loss function there will be no jump in the
+                # losses
+                optim = lr_scheduler.optimizer
+                swa_optim = swa.scheduler.optimizer
+
+                for g, swa_g in zip(optim.param_groups, swa_optim.param_groups):
+                    logging.info(f'Setting lr to {swa_g["swa_lr"] / 100}')
+                    g['lr'] =  swa_g['swa_lr'] / 100
+                ###################################################################
+
             loss_fn = swa.loss_fn
             swa.model.update_parameters(model)
             if epoch > start_epoch:
