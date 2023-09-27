@@ -68,9 +68,10 @@ def train(
     for epoch in range(start_epoch, max_num_epochs):
 
         # Required for shuffling data in DistributedDataParallel
-        sampler = train_loader.sampler
-        if isinstance(sampler, torch.utils.data.distributed.DistributedSampler):
-            sampler.set_epoch(epoch)
+        if rank is not None:
+            sampler = train_loader.sampler
+            if isinstance(sampler, torch.utils.data.distributed.DistributedSampler):
+                sampler.set_epoch(epoch)
 
         # Train
         for batch in train_loader:
@@ -109,30 +110,27 @@ def train(
             logger.log(eval_metrics)
             lr = lr_scheduler.optimizer.param_groups[0]['lr']
 
+            if global_rank is not None:
+                logging_device_str = f'GPU {global_rank}'
+            else:
+                logging_device_str = f'CPU'
+
             if log_errors == "PerAtomRMSE":
                 error_e = eval_metrics["rmse_e_per_atom"] * 1e3
                 error_f = eval_metrics["rmse_f"] * 1e3
-                logging.info(
-                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}"
-                )
+                logging.info(f"{logging_device_str} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}")
             elif log_errors == "TotalRMSE":
                 error_e = eval_metrics["rmse_e"] * 1e3
                 error_f = eval_metrics["rmse_f"] * 1e3
-                logging.info(
-                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}"
-                )
+                logging.info(f"{logging_device_str} | Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, lr={lr:.2e}")
             elif log_errors == "PerAtomMAE":
                 error_e = eval_metrics["mae_e_per_atom"] * 1e3
                 error_f = eval_metrics["mae_f"] * 1e3
-                logging.info(
-                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}"
-                )
+                logging.info(f"{logging_device_str} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}")
             elif log_errors == "TotalMAE":
                 error_e = eval_metrics["mae_e"] * 1e3
                 error_f = eval_metrics["mae_f"] * 1e3
-                logging.info(
-                        f"GPU {global_rank} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}"
-                )
+                logging.info(f"{logging_device_str} | Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A, lr={lr:.2e}")
 
             if valid_loss >= lowest_loss:
                 patience_counter += 1
