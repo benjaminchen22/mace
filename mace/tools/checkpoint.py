@@ -126,9 +126,10 @@ class CheckpointIO:
         os.makedirs(self.directory, exist_ok=True)
         torch.save(obj=checkpoint, f=path)
 
-        # Save model
+        # BC: Save model - converting model to CPU and then saving it leads to 
+        # hanging of multi-GPU training, even after converting model back to CUDA.
+        # Not sure why.
         model_path = path.removesuffix('.pt') + '.model'
-        model.to('cpu')
         torch.save(model, f=model_path)
 
         self.old_path = path
