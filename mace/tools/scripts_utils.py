@@ -259,6 +259,7 @@ def create_error_table(
             "RMSE MU / mDebye / atom",
             "rel MU RMSE %",
         ]
+    
     for name, subset in all_collections:
         data_loader = torch_geometric.dataloader.DataLoader(
             dataset=[
@@ -374,4 +375,4 @@ def create_error_table(
                     f"{metrics['rel_rmse_f']:.1f}",
                     ]
                 )
-        return table
+    return table
