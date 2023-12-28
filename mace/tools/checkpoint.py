@@ -50,17 +50,29 @@ class CheckpointPathInfo:
 
 
 class CheckpointIO:
-    def __init__(self, directory: str, tag: str, keep: bool = False) -> None:
+    def __init__(self, directory: str, tag: str, keep: bool = False, swa_start=None) -> None:
         self.directory = directory
         self.tag = tag
         self.keep = keep
         self.old_path: Optional[str] = None
         self.old_model_path: Optional[str] = None
+        self.swa_start = swa_start
 
         self._epochs_string = "_epoch-"
         self._filename_extension = "pt"
 
-    def _get_checkpoint_filename(self, epochs: int) -> str:
+    def _get_checkpoint_filename(self, epochs: int, swa_start=None) -> str:
+        logging.info(f'Epochs: {epochs}, swa_start: {swa_start}')
+        if swa_start is not None and epochs > swa_start:
+            return (
+                self.tag
+                + self._epochs_string
+                + str(epochs)
+                + "_swa"
+                + "."
+                + self._filename_extension
+            )
+
         return (
             self.tag
             + self._epochs_string
@@ -120,7 +132,7 @@ class CheckpointIO:
             with suppress(FileNotFoundError):
                 os.remove(self.old_model_path)
 
-        filename = self._get_checkpoint_filename(epochs)
+        filename = self._get_checkpoint_filename(epochs, self.swa_start)
         path = os.path.join(self.directory, filename)
         logging.debug(f"Saving checkpoint: {path}")
         os.makedirs(self.directory, exist_ok=True)
