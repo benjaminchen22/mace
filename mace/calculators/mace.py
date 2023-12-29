@@ -31,6 +31,7 @@ class MACECalculator(Calculator):
         self.results = {}
 
         device = torch.device(device)
+        self.device = device
         self.model = torch.load(f=model_path, map_location=device).to(device=device)
         self.r_max = self.model.r_max
         self.energy_units_to_eV = energy_units_to_eV

@@ -60,6 +60,7 @@ def train(
     lowest_loss = np.inf
     patience_counter = 0
     swa_start = True
+    keep_last = False
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
@@ -156,12 +157,16 @@ def train(
                             checkpoint_handler.save(
                                 state=CheckpointState(m, optimizer, lr_scheduler),
                                 epochs=epoch,
+                                keep_last=keep_last,
                             )
+                        keep_last = False
                     else:
                         checkpoint_handler.save(
                             state=CheckpointState(m, optimizer, lr_scheduler),
                             epochs=epoch,
+                            keep_last=keep_last,
                         )
+                        keep_last = False
                         #m.to('cpu')
                         #torch.save(m)
 
@@ -175,6 +180,8 @@ def train(
             if swa_start:
                 logging.info("Changing loss based on SWA")
                 swa_start = False
+                lowest_loss = np.inf
+                keep_last = True
                 
 
                 ##################################################################
