@@ -57,10 +57,16 @@ def train(
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
 ):
+
     lowest_loss = np.inf
     patience_counter = 0
     swa_start = True
     keep_last = False
+
+    if swa:
+        swa_optim = swa.scheduler.optimizer
+        for swa_g in swa_optim.param_groups:
+            logging.info(f'{list(swa_g.keys())}')
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
