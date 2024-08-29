@@ -116,11 +116,14 @@ def train(
             eval_metrics["epoch"] = epoch
             logger.log(eval_metrics)
             lr = lr_scheduler.optimizer.param_groups[0]['lr']
-
+            
             if global_rank is not None:
                 logging_device_str = f'GPU {global_rank}'
             else:
-                logging_device_str = f'CPU'
+                if 'cuda' in str(device):
+                    logging_device_str = f'GPU'
+                else:
+                    logging_device_str = f'CPU'
 
             if log_errors == "PerAtomRMSE":
                 error_e = eval_metrics["rmse_e_per_atom"] * 1e3
@@ -188,7 +191,6 @@ def train(
                 swa_start = False
                 lowest_loss = np.inf
                 keep_last = True
-                
 
                 ##################################################################
                 # BC: Experimental; set LR to a low value that will be annealed to the 
