@@ -57,9 +57,16 @@ def train(
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
 ):
+
     lowest_loss = np.inf
     patience_counter = 0
     swa_start = True
+    keep_last = False
+
+    if swa:
+        swa_optim = swa.scheduler.optimizer
+        for swa_g in swa_optim.param_groups:
+            logging.info(f'{list(swa_g.keys())}')
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
@@ -109,11 +116,14 @@ def train(
             eval_metrics["epoch"] = epoch
             logger.log(eval_metrics)
             lr = lr_scheduler.optimizer.param_groups[0]['lr']
-
+            
             if global_rank is not None:
                 logging_device_str = f'GPU {global_rank}'
             else:
-                logging_device_str = f'CPU'
+                if 'cuda' in str(device):
+                    logging_device_str = f'GPU'
+                else:
+                    logging_device_str = f'CPU'
 
             if log_errors == "PerAtomRMSE":
                 error_e = eval_metrics["rmse_e_per_atom"] * 1e3
@@ -156,12 +166,16 @@ def train(
                             checkpoint_handler.save(
                                 state=CheckpointState(m, optimizer, lr_scheduler),
                                 epochs=epoch,
+                                keep_last=keep_last,
                             )
+                        keep_last = False
                     else:
                         checkpoint_handler.save(
                             state=CheckpointState(m, optimizer, lr_scheduler),
                             epochs=epoch,
+                            keep_last=keep_last,
                         )
+                        keep_last = False
                         #m.to('cpu')
                         #torch.save(m)
 
@@ -175,7 +189,8 @@ def train(
             if swa_start:
                 logging.info("Changing loss based on SWA")
                 swa_start = False
-                
+                lowest_loss = np.inf
+                keep_last = True
 
                 ##################################################################
                 # BC: Experimental; set LR to a low value that will be annealed to the 
